@@ -8,7 +8,7 @@
  *					npm init
  *					npm install gulp -g
  *					npm install --save-dev gulp
- *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat gulp-inquirer
+ *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat inquirer
  *
  */
 
