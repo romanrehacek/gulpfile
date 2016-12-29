@@ -8,7 +8,7 @@
  *					npm init
  *					npm install gulp -g
  *					npm install --save-dev gulp
- *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat inquirer
+ *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat inquirer find-in-files
  *
  */
 
@@ -56,6 +56,7 @@ var node_path		= require('path');
 var concat			= require('gulp-concat');
 var inquirer		= require('inquirer');
 var fs				= require('fs');
+var findInFiles 	= require('find-in-files');
 
 // default gulp task
 gulp.task('default', function(done){
@@ -258,8 +259,21 @@ function watch_js_css() {
 				
 				if (parse.dir.search('/css/vendor') > 0 || parse.dir.search('/css/plugins') > 0) {
 					pack_css();
-				} else if (parse.ext == '.less') {
+					
+				// compile .less files, not _.less
+				} else if (parse.ext == '.less' && parse.name.charAt(0) != '_') {
 					less_function(datos.history[i]);
+				
+				// if save _.less file, find import of this file in other .less files and compile them
+				} else if (parse.ext == '.less' && parse.name.charAt(0) == '_') {
+					var f = node_path.parse(datos.history[i]);
+					
+					findInFiles.find("@import\\s+[\"']" + f.name + "(" + f.ext + ")?[\"'];", f.dir, '.less$')
+				    .then(function(results) {
+				        for (var result in results) {
+				            less_function(result);
+				        }
+				    });
 				}
 			})(i);
 		}
