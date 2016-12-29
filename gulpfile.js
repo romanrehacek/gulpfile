@@ -1,23 +1,48 @@
 /**
- * "gulp"						- main watch js a css files
- * "gulp watch-ftp"				- same as "gulp" but which deploing to remote server
- * "gulp pack-js"				- concat js files in "/js/plugins" and "/js/vendor" dirs
- * "gulp pack-css"				- concat css files in "/css/plugins" and "/css/vendor" dirs
+ * @author			Roman Rehacek
+ * @url				https://github.com/romanrehacek/gulpfile
+ * @date			29.12.2016
+ * @description		Type "gulp" into command line to show tasks menu
  * 
- * "gulp download_full"			- download full project from remote server
- * "gulp download_wp_content"	- download full wp-content directory from remote server
- * "gulp download_themes"		- download full wp-content/themes directory from remote server
- * "gulp download_plugins"		- download full wp-content/plugins directory from remote server
- * 
- * "gulp upload_full"			- upload full project to remote server
- * "gulp upload_wp_content"		- upload full wp-content directory to remote server
- * "gulp upload_themes"			- upload full wp-content/themes directory to remote server
- * "gulp upload_plugins"		- upload full wp-content/plugins directory to remote server
- * 
- * "gulp webui"					- start web ui for git
+ *					Install gulp for the first time
+ *					npm init
+ *					npm install gulp -g
+ *					npm install --save-dev gulp
+ *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat gulp-inquirer
+ *
  */
+
+
+var default_path = '[enter_path]';	// ex. ./wp-content/themes/name/ OR ./
+
+var ftp = {
+		dev: {
+			host:		"",			// example.com
+			login:		"",
+			pass:		"",
+			path:		"",			// /www
+			protocol:	"ftp",		// ftp OR sftp
+			port:		"21"		// ssh 2121
+		},
+		production: {
+			host:		"",			// example.com
+			login:		"",
+			pass:		"",
+			path:		"",			// /www
+			protocol:	"ftp",		// ftp OR sftp
+			port:		"21"		// ssh 2121
+		}
+	};
+
+var connect_to = ftp.dev;			// ftp.dev OR ftp.production
+
+/***************************
+ * ***** STOP EDITING! *****
+ * *************************/
  
+connect_to.path = untrailingSlashIt(connect_to.path);
  
+var selected		= {task : '', path : ''};
 var gulp			= require('gulp');
 var less			= require('gulp-less');
 var rename			= require("gulp-rename");
@@ -29,100 +54,204 @@ var gutil			= require('gulp-util');
 var prettyHrtime	= require('pretty-hrtime');
 var node_path		= require('path');
 var concat			= require('gulp-concat');
+var inquirer		= require('inquirer');
+var fs				= require('fs');
 
+// default gulp task
+gulp.task('default', function(done){
+	var question = [{
+		type : 'list',
+		name : 'task',
+		message : 'Select task',
+		choices: [
+				{ name: 'Watch less/js',				value: 'watch' },
+				{ name: 'Watch less/js and deploy', 	value: 'watch_ftp' },
+				{ name: 'Upload to remote server',		value: 'upload' },
+				{ name: 'Download from remote server',	value: 'download' },
+				{ name: 'Start git webui',				value: 'webui' },
+				{ name: 'Exit', 						value: 'exit' },
+			],
+		default: 'watch'
+	}];
+	
+	inquirer.prompt(question).then(function(answer) {
+		done();
+		selected.task = answer.task.toString().trim();
+		
+		switch (selected.task) {
+			case 'exit':
+				process.exit(2);
+				break;
+			case 'watch':
+			case 'webui':
+				get_paths();
+				break;
+			case 'watch_ftp':
+			case 'upload':
+			case 'download':
+				get_paths(true);
+				break;
+		}
+		
+		/**
+		 * If is necessary to call function
+		 * eg. global.watch = function watch() { get_paths(); }
+		 * 
+		 * if (selected.task in global && typeof global[selected.task] === "function") {
+		 *		global[selected.task]();
+		 * }
+		 */
+		
+		//process.exit(2);
+	});
+});
 
-var path = './wp-content/themes/name/'; // etc. ./wp-content/themes/name/ OR ./
-
-var ftp = {
-	dev: {
-		host: "",			// example.com
-		login: "",
-		pass: "",
-		path: "",			// /www
-		protocol: "ftp",	// ftp OR sftp
-		port: "21"			// ssh 2121
-	},
-	production: {
-		host: "",			// example.com
-		login: "",
-		pass: "",
-		path: "/www",		// /www
-		protocol: "ftp",	// ftp OR sftp
-		port: "21"			// ssh 2121
+function get_paths(more) {
+	var is_wp = false;
+	var paths = [];
+	
+	// check, if wp-content directory exists (is wordpress site)
+	if (fs.existsSync(get_full_path('wp-content'))){
+    	[
+    		'./wp-content/themes/',
+    		'./wp-content/plugins/'
+    	]
+    	.forEach(function(subdir){
+    		// get subdirs of themes a plugins dirs
+    	 	paths = paths.concat(walk(subdir));
+    	});
+    	is_wp = true;
+	} else {
+		// use only root dir
+		selected.path = get_full_path('./');
+		
+		// skip directory chosing
+		start_task();
+		return;
 	}
-};
+	
+	var choices = [];
+	
+	// prepare choices
+	paths.forEach(function(path_name) {
+		choices = choices.concat( { name: get_rel_path(path_name), value: path_name } );
+	});
+	
+	if (more === true && is_wp) {
+		choices = choices.concat(new inquirer.Separator());
+		choices = choices.concat( { name: 'Full site', value: get_full_path('./') } );
+		choices = choices.concat( { name: 'All plugins', value: get_full_path('./wp-content/plugins/') } );
+		choices = choices.concat( { name: 'Uploads', value: get_full_path('./wp-content/uploads/') } );
+		choices = choices.concat( { name: 'Full wp-content', value: get_full_path('./wp-content/') } );
+	}
+	
+	choices = choices.concat(new inquirer.Separator());
+	choices = choices.concat( { name: 'Exit', value: 'exit' } );
+	
+	var question = [{
+		type : 'list',
+		name : 'path',
+		message : 'Select path',
+		choices: choices,
+		default: get_full_path(default_path)
+	}];
+	
+	return inquirer.prompt(question).then(function(answer) {
+		selected.path = answer.path.toString().trim();
+		
+		if (selected.path === 'exit') {
+			process.exit(2);
+		} 
+		
+		// call functions
+		start_task();
+	});
+}
 
-var connect_to = ftp.dev;	// OR ftp.production
+function start_task() {
+	switch (selected.task) {
+		case 'watch':
+			watch_js_css();
+			break;
+		case 'watch_ftp':
+			watch_js_css();
+			start_watch_ftp();
+			break;
+		case 'upload':
+			upload();
+			break;
+		case 'download':
+			download();
+			break;
+		case 'webui':
+			start_webui();
+			break;
+	}
+}
 
-gulp.task('default', function() {
-	watch_js_css();
-});
+function start_watch_ftp() {
 
-gulp.task('watch-ftp', function() {
-	watch_js_css();
-
-	return watch([path + '**', path + '!node_modules{,/**}', path + '!package.json', path + '!gulpfile.js', path + '!.git{,/**}'], function(datos) {
-		for (var i = 0; i < datos.history.length; i++) {
-			(function(i) {
-				if (datos.history[i].search('.git') > 0) {
-					return;
-				}
-				var archivoLocal = datos.history[i];
-				var archivoRel = datos.history[i].replace(datos.cwd, '');
+	return watch([
+					selected.path + '/**', 
+					selected.path + '/!node_modules{,/**}', 
+					selected.path + '/!package.json', 
+					selected.path + '/!gulpfile.js', 
+					selected.path + '/!.git{,/**}'
+				], function(datos) {
+						for (var i = 0; i < datos.history.length; i++) {
+							(function(i) {
+								if (datos.history[i].search('.git') > 0) {
+									return;
+								}
+								var archivoLocal = datos.history[i];
+								var archivoRel = datos.history[i].replace(datos.cwd, '');
+								
+								var archivoRemoto = connect_to.path + archivoRel;
+								var valid = true;
+								if (archivoLocal.indexOf('/.') >= 0) {
+									valid = false; //ignore .git, .ssh folders and the like
+								}
 				
-				var archivoRemoto = connect_to.path + archivoRel;
-				var valid = true;
-				if (archivoLocal.indexOf('/.') >= 0) {
-					valid = false; //ignore .git, .ssh folders and the like
-				}
-
-				var disable_ssl = "set ftp:ssl-allow no; ";
-				var opt = "set net:max-retries 2;set net:reconnect-interval-base 1;set net:reconnect-interval-multiplier 1; ";
-				if (connect_to.protocol == "sftp") {
-					disable_ssl = "";
-				}
-
-				var comando = disable_ssl + opt + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; put " + archivoLocal + " -o " + archivoRemoto;
-				if (valid) {
-
-					var exec = require('child_process').exec;
-					var child = exec('lftp -c "' + comando + '"');
-
-					// Listen for any response:
-					child.stdout.on('data', function(data) {
-						console.log(child.pid, data);
-					});
-
-					// Listen for any errors:
-					child.stderr.on('data', function(data) {
-						console.log(child.pid, data);
-					});
-
-					// Listen if the process closed
-					child.on('close', function(exit_code) {
-						if (exit_code == 0) {
-							console.log("\x1b[42mUpload complete\x1b[0m - " + archivoLocal);
-						}
-						else {
-							console.log("\x1b[41mError\x1b[0m");
-						}
-					});
-				}
-			})(i);
-		} //end for
+								var disable_ssl = "set ftp:ssl-allow no; ";
+								var opt = "set net:max-retries 3;set net:reconnect-interval-base 1;set net:reconnect-interval-multiplier 1; ";
+								if (connect_to.protocol == "sftp") {
+									disable_ssl = "";
+								}
+				
+								var comando = disable_ssl + opt + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; put " + archivoLocal + " -o " + archivoRemoto;
+								
+								if (valid) {
+				
+									var exec = require('child_process').exec;
+									var child = exec('lftp -c "' + comando + '"');
+				
+									// Listen for any response:
+									child.stdout.on('data', function(data) {
+										console.log(child.pid, data);
+									});
+				
+									// Listen for any errors:
+									child.stderr.on('data', function(data) {
+										console.log(child.pid, data);
+									});
+				
+									// Listen if the process closed
+									child.on('close', function(exit_code) {
+										if (exit_code == 0) {
+											console.log("\x1b[42mUpload complete\x1b[0m - " + archivoLocal);
+										}
+										else {
+											console.log("\x1b[41mError\x1b[0m");
+										}
+									});
+								}
+							})(i);
+						} //end for
 	}); //end watch
-});
-
-gulp.task('pack-js', function() {
-	return pack_js(true);
-});
-
-gulp.task('pack-css', function() {
-	return pack_css(true);
-});
+}
 
 function watch_js_css() {
-	watch([path + 'css/**/*'], function(datos) {
+	watch([selected.path + '/**/css/**/*', '!' + selected.path + '/.c9/**/css/**/*'], function(datos) {
 		for (var i = 0; i < datos.history.length; i++) {
 			(function(i) {
 				var parse = node_path.parse(datos.history[i]);
@@ -136,7 +265,7 @@ function watch_js_css() {
 		}
 	});
 
-	watch([path + 'js/**/*'], function(datos) {
+	watch([selected.path + '/**/js/**/*', '!' + selected.path + '/.c9/**/js/**/*'], function(datos) {
 		for (var i = 0; i < datos.history.length; i++) {
 			(function(i) {
 				var parse = node_path.parse(datos.history[i]);
@@ -159,28 +288,28 @@ function less_function(files) {
 	}
 
 	var start = process.hrtime();
-	gutil.log('Starting \'\x1b[36mless\x1b[0m\' - ' + get_file_path(files));
+	gutil.log('Starting \'\x1b[36mless\x1b[0m\' - ' + get_rel_path(files));
 
 	var combined = combiner.obj([
 		gulp.src(files),
 		less(),
-		gulp.dest(path + 'css'),
+		gulp.dest(f.dir),
 		cleancss({
 			'keepSpecialComments': 0
 		}),
 		rename({
 			suffix: '.min',
 		}),
-		gulp.dest(path + 'css')
+		gulp.dest(f.dir)
 	]);
 
 	// any errors in the above streams will get caught
 	// by this listener, instead of being thrown:
 	combined.on('error', console.error.bind(console));
 
-	combined.on('finish', log('Finished \'\x1b[36mless\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_file_path(files)));
+	combined.on('finish', log('Finished \'\x1b[36mless\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_rel_path(files)));
 	return combined;
-};
+}
 
 function compressjs_function(files) {
 	var f = node_path.parse(files);
@@ -190,7 +319,7 @@ function compressjs_function(files) {
 	}
 
 	var start = process.hrtime();
-	gutil.log('Starting \'\x1b[36mcompressjs\x1b[0m\' - ' + get_file_path(files));
+	gutil.log('Starting \'\x1b[36mcompressjs\x1b[0m\' - ' + get_rel_path(files));
 
 	var combined = combiner.obj([
 		gulp.src(files),
@@ -198,15 +327,15 @@ function compressjs_function(files) {
 		rename({
 			suffix: '.min'
 		}),
-		gulp.dest(path + 'js')
+		gulp.dest(f.dir)
 	]);
 
 	// any errors in the above streams will get caught
 	// by this listener, instead of being thrown:
 	combined.on('error', console.error.bind(console));
-	combined.on('finish', log('Finished \'\x1b[36mcompressjs\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_file_path(files)));
+	combined.on('finish', log('Finished \'\x1b[36mcompressjs\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_rel_path(files)));
 	return combined;
-};
+}
 
 function pack_css(hide_output) {
 
@@ -218,16 +347,16 @@ function pack_css(hide_output) {
 	}
 
 	var combined = combiner.obj([
-		gulp.src([path + 'css/vendor/**/*.css', path + 'css/plugins/**/*.css']),
+		gulp.src([selected.path + '/**/css/vendor/**/*.css', selected.path + '/**/css/plugins/**/*.css']),
 		concat('plugins.css'),
-		gulp.dest(path + 'css'),
+		gulp.dest(selected.path + '/css'),
 		cleancss({
 			'keepSpecialComments': 0
 		}),
 		rename({
 			suffix: '.min'
 		}),
-		gulp.dest(path + 'css')
+		gulp.dest(selected.path + '/css')
 	]);
 
 	// any errors in the above streams will get caught
@@ -250,14 +379,14 @@ function pack_js(hide_output) {
 	}
 
 	var combined = combiner.obj([
-		gulp.src([path + 'js/vendor/**/*.js', path + 'js/plugins/**/*.js']),
+		gulp.src([selected.path + '/**/js/vendor/**/*.js', selected.path + '/**/js/plugins/**/*.js']),
 		concat('plugins.js'),
-		gulp.dest(path + 'js'),
+		gulp.dest(selected.path + '/js'),
 		uglify(),
 		rename({
 			suffix: '.min'
 		}),
-		gulp.dest(path + 'js')
+		gulp.dest(selected.path + '/js')
 	]);
 
 	// any errors in the above streams will get caught
@@ -271,64 +400,14 @@ function pack_js(hide_output) {
 	return combined;
 };
 
-gulp.task('download_full', function() {
-	download("");
-});
-
-gulp.task('download_wp_content', function() {
-	download("/wp-content");
-});
-
-gulp.task('download_themes', function() {
-	download("/wp-content/themes");
-});
-
-gulp.task('download_uploads', function() {
-	download("/wp-content/uploads");
-});
-
-gulp.task('download_plugins', function() {
-	download("/wp-content/plugins");
-});
-
-gulp.task('upload_full', function() {
-	upload("");
-});
-
-gulp.task('upload_wp_content', function() {
-	upload("/wp-content");
-});
-
-gulp.task('upload_themes', function() {
-	upload("/wp-content/themes");
-});
-
-gulp.task('upload_uploads', function() {
-	upload("/wp-content/uploads");
-});
-
-gulp.task('upload_plugins', function() {
-	upload("/wp-content/plugins");
-});
-
-function log(message) {
-	return function() {
-		gutil.log(message + "\n");
-	}
-}
-
-function get_file_path(file) {
-	return file.replace('/home/ubuntu/workspace/' + path.replace('./', ''), '');
-}
-
-function download(path) {
+function download() {
 	var start = process.hrtime();
 	var disable_ssl = "set ftp:ssl-allow no; ";
 	
 	if (connect_to.protocol == "sftp") {
 		disable_ssl = "";
 	}
-	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + path + "/ /home/ubuntu/workspace" + path;
+	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
@@ -345,14 +424,15 @@ function download(path) {
 	});
 }
 
-function upload(path) {
+function upload() {
 	var start = process.hrtime();
 	var disable_ssl = "set ftp:ssl-allow no; ";
 	
 	if (connect_to.protocol == "sftp") {
 		disable_ssl = "";
 	}
-	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" /home/ubuntu/workspace" + path + "/ " + connect_to.path + path;
+	
+	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
@@ -369,11 +449,11 @@ function upload(path) {
 	});
 }
 
-gulp.task('webui', function() {
+function start_webui() {
 
 	const spawn = require('child_process').spawn;
 	try {
-		process.chdir(path);
+		process.chdir(selected.path);
 		console.log(`New directory: ${process.cwd()}`);
 		const grep = spawn('git', ['webui', '--allow-hosts=' + process.env.C9_HOSTNAME, '--port=8082', '--no-browser'], {
 			stdio: ['inherit', 'inherit', 'inherit']
@@ -383,4 +463,48 @@ gulp.task('webui', function() {
 		console.log(`\x1b[41mError chdir: ${err}\x1b[0m`);
 	}
 	
-});
+};
+
+
+
+/*******************************
+ * ********* HELPERS ***********
+ * *****************************/
+ 
+function get_full_path(path_name) {
+	var resolved = node_path.resolve(path_name);
+	if (resolved.indexOf(__dirname) == -1) {
+		resolved = __dirname + '' + resolved;
+	}
+	return resolved;
+	//return resolved.replace(__dirname, '');
+}
+
+function get_rel_path(path_name) {
+	return get_full_path(path_name).replace(__dirname, '');
+}
+
+function walk(dir) {
+	var directory = get_full_path(dir);
+    var results = [];
+    var list = fs.readdirSync(directory);
+    list.forEach(function(file) {
+        file = directory + '/' + file;
+        var stat = fs.statSync(file);
+        if (stat && stat.isDirectory()) {
+        	results = results.concat(file);
+        }
+    });
+    
+    return results;
+}
+
+function log(message) {
+	return function() {
+		gutil.log(message + "\n");
+	};
+}
+
+function untrailingSlashIt(str) {
+	return str.replace(/\/$/, '');
+}
