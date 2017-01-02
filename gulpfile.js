@@ -218,8 +218,13 @@ function start_watch_ftp() {
 								if (connect_to.protocol == "sftp") {
 									disable_ssl = "";
 								}
+								
+								var port = '';
+								if (connect_to.port) {
+									port = " -p " + connect_to.port;
+								}
 				
-								var comando = disable_ssl + opt + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; put " + archivoLocal + " -o " + archivoRemoto;
+								var comando = disable_ssl + opt + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; put " + archivoLocal + " -o " + archivoRemoto;
 								
 								if (valid) {
 				
@@ -421,7 +426,13 @@ function download() {
 	if (connect_to.protocol == "sftp") {
 		disable_ssl = "";
 	}
-	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
+	
+	var port = '';
+	if (connect_to.port) {
+		port = " -p " + connect_to.port;
+	}
+	
+	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
@@ -446,7 +457,12 @@ function upload() {
 		disable_ssl = "";
 	}
 	
-	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " -p " + connect_to.port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
+	var port = '';
+	if (connect_to.port) {
+		port = " -p " + connect_to.port;
+	}
+	
+	var comando = disable_ssl + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
