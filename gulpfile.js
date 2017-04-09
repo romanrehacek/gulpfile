@@ -364,18 +364,23 @@ function pack_css(hide_output) {
 		var start = process.hrtime();
 		gutil.log('Starting \'\x1b[36mpack-css\x1b[0m\'');
 	}
+	
+	var assetsDir = '';
+	if ( fsExistsSync( selected.path + '/assets' ) ) {
+		assetsDir = '/assets';
+	}
 
 	var combined = combiner.obj([
 		gulp.src([selected.path + '/**/css/vendor/**/*.css', selected.path + '/**/css/plugins/**/*.css']),
 		concat('plugins.css'),
-		gulp.dest(selected.path + '/css'),
+		gulp.dest(selected.path + assetsDir + '/css'),
 		cleancss({
 			'keepSpecialComments': 0
 		}),
 		rename({
 			suffix: '.min'
 		}),
-		gulp.dest(selected.path + '/css')
+		gulp.dest(selected.path + assetsDir + '/css')
 	]);
 
 	// any errors in the above streams will get caught
@@ -396,16 +401,21 @@ function pack_js(hide_output) {
 		var start = process.hrtime();
 		gutil.log('Starting \'\x1b[36mpack-js\x1b[0m\'');
 	}
+	
+	var assetsDir = '';
+	if ( fsExistsSync( selected.path + '/assets' ) ) {
+		assetsDir = '/assets';
+	}
 
 	var combined = combiner.obj([
 		gulp.src([selected.path + '/**/js/vendor/**/*.js', selected.path + '/**/js/plugins/**/*.js']),
 		concat('plugins.js'),
-		gulp.dest(selected.path + '/js'),
+		gulp.dest(selected.path + assetsDir + '/js'),
 		uglify(),
 		rename({
 			suffix: '.min'
 		}),
-		gulp.dest(selected.path + '/js')
+		gulp.dest(selected.path + assetsDir + '/js')
 	]);
 
 	// any errors in the above streams will get caught
@@ -537,4 +547,13 @@ function log(message) {
 
 function untrailingSlashIt(str) {
 	return str.replace(/\/$/, '');
+}
+
+function fsExistsSync(myDir) {
+	try {
+		fs.accessSync(myDir);
+		return true;
+	} catch (e) {
+		return false;
+	}
 }
