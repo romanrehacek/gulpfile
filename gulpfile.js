@@ -257,6 +257,11 @@ function start_watch_ftp() {
 }
 
 function watch_js_css() {
+	var assetsDir = '';
+	if (fsExistsSync(selected.path + '/assets')) {
+		assetsDir = '/assets';
+	}
+	
 	watch([selected.path + '/**/css/**/*', '!' + selected.path + '/.c9/**/css/**/*'], function(datos) {
 		for (var i = 0; i < datos.history.length; i++) {
 			(function(i) {
@@ -264,6 +269,9 @@ function watch_js_css() {
 				
 				if (parse.dir.search('/css/vendor') > 0 || parse.dir.search('/css/plugins') > 0) {
 					pack_css();
+				
+				} else if (parse.ext == '.scss' && parse.name.charAt(0) != '_') {
+					sass_function( selected.path + assetsDir + '/css/style.scss' );
 					
 				// compile .less files, not _.less
 				} else if (parse.ext == '.less' && parse.name.charAt(0) != '_') {
@@ -327,6 +335,40 @@ function less_function(files) {
 	combined.on('error', console.error.bind(console));
 
 	combined.on('finish', log('Finished \'\x1b[36mless\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_rel_path(files)));
+	return combined;
+}
+
+function sass_function(files) {
+	var f = node_path.parse(files);
+
+	if (f.ext != '.scss') {
+		return;
+	}
+
+	var start = process.hrtime();
+	gutil.log('Starting \'\x1b[36msass\x1b[0m\' - ' + get_rel_path(files));
+
+	var combined = combiner.obj([
+		gulp.src(files),
+		sourcemaps.init({loadMaps: false}),
+		sass().on('error', sass.logError),
+		//sourcemaps.write('.', {includeContent: false, sourceRoot: '/sass'}),
+		//gulp.dest(f.dir),
+		cleancss({
+			'keepSpecialComments': 0
+		}),
+		/*rename({
+			suffix: '.min',
+		}),*/
+		sourcemaps.write('.', {includeContent: false, sourceRoot: '/sass'}),
+		gulp.dest(f.dir)
+	]);
+
+	// any errors in the above streams will get caught
+	// by this listener, instead of being thrown:
+	combined.on('error', console.error.bind(console));
+
+	combined.on('finish', log('Finished \'\x1b[36msass\x1b[0m\' after \x1b[35m' + prettyHrtime(process.hrtime(start)) + '\x1b[0m - ' + get_rel_path(files)));
 	return combined;
 }
 
