@@ -8,7 +8,7 @@
  *					npm init
  *					npm install gulp -g
  *					npm install --save-dev gulp
- *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat inquirer find-in-files
+ *					npm install --save-dev gulp-less gulp-rename gulp-clean-css gulp-uglify stream-combiner2 gulp-watch gulp-util pretty-hrtime gulp-concat inquirer find-in-files gulp-sass
  *
  */
 
@@ -57,6 +57,7 @@ var concat			= require('gulp-concat');
 var inquirer		= require('inquirer');
 var fs				= require('fs');
 var findInFiles 	= require('find-in-files');
+var sass 			= require('gulp-sass');
 
 // default gulp task
 gulp.task('default', function(done){
@@ -350,17 +351,14 @@ function sass_function(files) {
 
 	var combined = combiner.obj([
 		gulp.src(files),
-		sourcemaps.init({loadMaps: false}),
 		sass().on('error', sass.logError),
-		//sourcemaps.write('.', {includeContent: false, sourceRoot: '/sass'}),
-		//gulp.dest(f.dir),
+		gulp.dest(f.dir),
 		cleancss({
 			'keepSpecialComments': 0
 		}),
-		/*rename({
+		rename({
 			suffix: '.min',
-		}),*/
-		sourcemaps.write('.', {includeContent: false, sourceRoot: '/sass'}),
+		}),
 		gulp.dest(f.dir)
 	]);
 
