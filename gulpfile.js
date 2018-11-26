@@ -321,7 +321,7 @@ function less_function(files) {
 
 	var combined = combiner.obj([
 		gulp.src(files),
-		less(),
+		less({javascriptEnabled: true}),
 		gulp.dest(f.dir),
 		cleancss({
 			'keepSpecialComments': 0
