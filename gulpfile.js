@@ -488,7 +488,7 @@ function download() {
 		port = " -p " + connect_to.port;
 	}
 	
-	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
+	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
@@ -523,7 +523,7 @@ function upload() {
 		port = " -p " + connect_to.port;
 	}
 	
-	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git|.gitignore|.htaccess|wp-config.php|.c9|node_modules|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
+	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
