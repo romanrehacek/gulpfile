@@ -473,6 +473,7 @@ function pack_js(hide_output) {
 function download() {
 	var start = process.hrtime();
 	var disable_ssl = "set ftp:ssl-allow no; ";
+	var allow_key = 'set sftp:auto-confirm yes; ';
 	var ssh_key = '';
 	
 	if (connect_to.protocol == "sftp") {
@@ -488,7 +489,7 @@ function download() {
 		port = " -p " + connect_to.port;
 	}
 	
-	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 --exclude \"(header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
+	var comando = disable_ssl + allow_key + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 --exclude \"(.history/|header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + connect_to.path + get_rel_path(selected.path) + "/ " + selected.path;
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
@@ -508,6 +509,7 @@ function download() {
 function upload() {
 	var start = process.hrtime();
 	var disable_ssl = "set ftp:ssl-allow no; ";
+	var allow_key = 'set sftp:auto-confirm yes; ';
 	var ssh_key = "";
 	
 	if (connect_to.protocol == "sftp") {
@@ -523,7 +525,7 @@ function upload() {
 		port = " -p " + connect_to.port;
 	}
 	
-	var comando = disable_ssl + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 -R --exclude \"(header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
+	var comando = disable_ssl + allow_key + ssh_key + "open -u " + connect_to.login + "," + connect_to.pass + " " + connect_to.protocol + "://" + connect_to.host + " " + port + "; mirror --parallel=10 -R --exclude \"(.history/|header-external-scripts.php|.git/|.gitignore|.htaccess|wp-config.php|.c9/|node_modules/|gulpfile.js|package.json|start.sh)+\" " + selected.path + "/ " + connect_to.path + get_rel_path(selected.path);
 
 	const spawn = require('child_process').spawn;
 	const command = spawn('lftp', ['-c', comando], {
